@@ -1,0 +1,12 @@
+[package]
+name = "cdn-server-cmd"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cdn-server-api = { path = "../api" }
+
+clap = { version = "4.0.19", features = ["derive"] }
+colored = "2.0.0"
