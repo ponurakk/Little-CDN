@@ -1,12 +1,13 @@
 [package]
-name = "cdn-server-cmd"
+name = "little-cdn-cmd"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["ponurakk"]
+license = "MIT"
+publish = false
 
 [dependencies]
-cdn-server-api = { path = "../api" }
+little-cdn-api = { path = "../api" }
 
-clap = { version = "4.0.19", features = ["derive"] }
+clap = { version = "4.0.19", features = ["derive", "cargo"] }
 colored = "2.0.0"

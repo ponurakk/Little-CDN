@@ -1,15 +1,13 @@
 [package]
-name = "cdn-server"
+name = "little-cdn"
 version = "0.1.0"
 edition = "2021"
 authors = ["ponurakk"]
 license = "MIT"
 publish = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [workspace]
 members = [".", "api", "cmd"]
 
 [dependencies]
-cdn-server-cmd = { path = "cmd" }
+little-cdn-cmd = { path = "cmd" }

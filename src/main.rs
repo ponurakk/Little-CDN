@@ -1,3 +1,3 @@
 fn main() {
-    cdn_server_cmd::main();
+    little_cdn_cmd::main();
 }
