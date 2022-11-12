@@ -1,7 +1,9 @@
+use std::fs::create_dir;
 use clap::{ arg, command, value_parser };
 use std::path::PathBuf;
 use colored::Colorize;
 
+use little_cdn_api::Config;
 
 pub fn main() {
     println!("{}", r"
@@ -26,7 +28,7 @@ pub fn main() {
             .default_value("3000")
         )
         .arg(arg!(
-            -l --log "Show api logs"
+            -l --log ... "Show api logs. Use multiple times for highier debuging level "
         ))
         .arg(arg!(
                 -d --dir <DIR> "Main folder for storing files"
@@ -41,32 +43,44 @@ pub fn main() {
             .default_value("db")
         )
         .arg(arg!(
-            --"clear-database" "Clear the database"
+            -f --"clear-database" "Clear the database"
         ))
         .arg(arg!(
-            --"disable-login" --"d-l" "No one will be allowed to create new account"
+            -n --"disable-login" "No one will be allowed to create new account"
         ))
         .get_matches();
 
-    let stop_web = matches.get_one::<bool>("stop-web").unwrap().clone();
-    let address = matches.get_one::<String>("address").unwrap().clone();
-    let port = matches.get_one::<String>("port").unwrap().clone().parse::<u16>().unwrap();
-    let log= matches.get_one::<bool>("log").unwrap().clone();
-    let dir = matches.get_one::<PathBuf>("dir").unwrap().clone();
-    let db = matches.get_one::<PathBuf>("db").unwrap().clone();
-    let disable_login = matches.get_one::<bool>("disable-login").unwrap().clone();
-    let clear_database = matches.get_one::<bool>("clear-database").unwrap().clone();
+    let config = Config {
+        stop_web: matches.get_one::<bool>("stop-web").unwrap().clone(),
+        address: matches.get_one::<String>("address").unwrap().clone(),
+        port: matches.get_one::<String>("port").unwrap().clone().parse::<u16>().unwrap(),
+        log: matches.get_one::<u8>("log").unwrap().clone(),
+        dir: matches.get_one::<PathBuf>("dir").unwrap().clone(),
+        db: matches.get_one::<PathBuf>("db").unwrap().clone(),
+        disable_login: matches.get_one::<bool>("disable-login").unwrap().clone(),
+        clear_database: matches.get_one::<bool>("clear-database").unwrap().clone(),
+    };
 
-    let server = little_cdn_api::main(
-        stop_web,
-        address,
-        port,
-        log,
-        dir,
-        db,
-        clear_database,
-        disable_login
-    );
+    let style_dir = create_dir("stylesheets/");
+    match style_dir {
+        Ok(v) => v,
+        Err(_) => {
+            if config.log > 1 {
+                println!("Styles folder already exists skipping...");
+            }
+        },
+    };
+    let html_dir = create_dir("templates/");
+    match html_dir {
+        Ok(v) => v,
+        Err(_) => {
+            if config.log > 1 {
+                println!("Templates folder already exists skipping...");
+            }
+        },
+    };
+
+    let server = little_cdn_api::main(config);
 
     match server {
         Ok(v) => v,

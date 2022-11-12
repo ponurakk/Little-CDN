@@ -1,115 +1,72 @@
-use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
-use std::fs::rename;
 
 use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
-    error,
-    get, post,
     http::{ header::ContentType, StatusCode },
     middleware::{ self, ErrorHandlerResponse, ErrorHandlers },
-    web, App, Error, HttpResponse, HttpServer, Responder, Result,
+    web, App, HttpResponse, HttpServer, Result,
 };
 use actix_files as afs;
-use actix_web_lab::respond::Html;
 use tera::Tera;
+use rust_embed::RustEmbed;
 
-use chrono;
-
-use actix_easy_multipart::MultipartForm;
-use actix_easy_multipart::text::Text;
-use actix_easy_multipart::tempfile::Tempfile;
-
+mod controllers;
+use controllers::{ user_controller, admin_controller };
 
 #[derive(Debug, Clone)]
-struct AppState {
+pub struct AppState {
     conn: PathBuf,
     tera: Tera,
     files_path: PathBuf,
+    config: Config,
 }
 
-#[derive(MultipartForm)]
-struct Upload {
-    token: Text<String>,
-    file: Tempfile,
-}
-
-#[post("")]
-async fn save_file(
-    form: MultipartForm<Upload>,
-    data: web::Data<AppState>,
-) -> Result<HttpResponse, Error> {
-    let dt = chrono::offset::Utc::now().format("Uploaded_%Y-%m-%d_%H-%M-%S").to_string();
-    let filename = String::from(&form.file.file_name.clone().unwrap());
-    let vec = filename.split(".").collect::<Vec<&str>>();
-    let filepath = format!("./{}/{}.{}", &data.files_path.display(), dt, vec[vec.len()-1]);
-    rename(&form.file.file.path(), filepath)?;
-
-    // let db = sled::open(&data.conn)?;
-    // let user = "";
-    // db.insert(key, );
-
-    Ok(HttpResponse::Created().finish())
-}
-
-// store tera template in application state
-#[get("")]
-async fn index(
-    data: web::Data<AppState>,
-    query: web::Query<HashMap<String, String>>,
-) -> Result<impl Responder, Error> {
-    let tmpl = &data.tera;
-    let s = if let Some(name) = query.get("name") {
-        // submitted form
-        let mut ctx = tera::Context::new();
-        ctx.insert("name", name);
-        ctx.insert("text", "Welcome!");
-        tmpl.render("post.html", &ctx)
-            .map_err(|_| error::ErrorInternalServerError("Template error"))?
-    } else {
-        tmpl.render("index.html", &tera::Context::new())
-            .map_err(|_| error::ErrorInternalServerError("Template error"))?
-    };
-
-    Ok(Html(s))
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub stop_web: bool,
+    pub address: String,
+    pub port: u16,
+    pub log: u8,
+    pub dir: PathBuf,
+    pub db: PathBuf,
+    pub disable_login: bool,
+    pub clear_database: bool,
 }
 
 #[actix_web::main]
-pub async fn main(
-    stop_web: bool,
-    address: String,
-    port: u16,
-    log: bool,
-    dir_name: PathBuf,
-    db_path: PathBuf,
-    clear_db: bool,
-    disable_login: bool,
-) -> std::io::Result<()> {
-    let db = sled::open(&db_path)?;
-    let key = "authorize";
+pub async fn main(config: Config) -> std::io::Result<()> {
 
-    let val = db.get(key)?;
-    println!("{:#?}", std::str::from_utf8(&val.unwrap()).unwrap());
-
-    if log {
+    if config.log > 0 {
         std::env::set_var("RUST_LOG", "actix_web=info");
     }
 
-    let dir = format!("./{}", dir_name.display());
+    let dir = format!("./{}", config.dir.display());
     std::fs::create_dir_all(&dir)?;
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     // todo!("Cusom file name");
 
-    println!("Listening on: {}:{}", address, port);
+    let load = load_html(&config);
+    match load {
+        Ok(v) => v,
+        Err(e) => {
+            panic!("Loading Website resulted in error {:#?}", e);
+        }
+    }
+
+    let bind = (config.address.clone(), config.port.clone());
+    println!("Listening on: {}:{}", bind.0, bind.1);
 
     HttpServer::new(move || {
-        let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
+        let tera = Tera::new("templates/**/*").unwrap();
         let logger = middleware::Logger::new("\"%a %s %r\" %b bytes %T s");
         let state = AppState {
-            conn: db_path.clone(),
+            conn: config.db.clone(),
             tera,
-            files_path: dir_name.clone(),
+            files_path: config.dir.clone(),
+            config: config.clone(),
         };
 
         App::new()
@@ -117,22 +74,55 @@ pub async fn main(
             .wrap(logger)
             .service(
                 web::scope("/")
-                    .service(index)
-                    .service(save_file)
+                    .service(user_controller::index)
+                    .service(user_controller::save_file)
             )
             .service(
                 web::scope("")
                     .service(afs::Files::new("/files", &dir).show_files_listing())
-                    // .service(fs::Files::new("/static", "./static").show_files_listing())
+                    .service(afs::Files::new("/style", "./stylesheets"))
             )
             .service(
                 web::scope("")
                     .wrap(error_handlers())
             )
     })
-        .bind((address, port))?
+        .bind(bind)?
         .run()
         .await
+}
+
+fn load_html(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
+    #[derive(RustEmbed)]
+    #[folder = "stylesheets/"]
+    #[prefix = "stylesheets/"]
+    struct Css;
+
+    #[derive(RustEmbed)]
+    #[folder = "templates/"]
+    #[prefix = "templates/"]
+    struct HTML;
+
+    for file in Css::iter() {
+        let index = Css::get(file.as_ref()).expect("Error in reading css file");
+        let content = std::str::from_utf8(index.data.as_ref())?.as_bytes();
+        let mut new_file = File::create(file.as_ref())?;
+        new_file.write_all(content)?;
+        if config.log > 1 {
+            println!("Created: {}", file.as_ref());
+        }
+    }
+
+    for file in HTML::iter() {
+        let index = HTML::get(file.as_ref()).expect("Error in reading css file");
+        let content = std::str::from_utf8(index.data.as_ref())?.as_bytes();
+        let mut new_file = File::create(file.as_ref())?;
+        new_file.write_all(content)?;
+        if config.log > 1 {
+            println!("Created: {}", file.as_ref());
+        }
+    }
+    Ok(())
 }
 
 // Custom error handlers, to return HTML responses when an error occurs.

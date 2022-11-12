@@ -13,8 +13,6 @@ actix-web-lab = "0.18"
 actix-easy-multipart = "3.0.0"
 
 uuid = { version = "1", features = ["v4"] }
-#futures-util = { version = "0.3.17", default-features = false, features = ["std"] }
-#sanitize-filename = "0.4"
 env_logger = "0.9"
 tera = "1.17.1"
 chrono = "0.4.22"
@@ -22,3 +20,4 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "0.9.10"
 
 sled = "0.34.7"
+rust-embed = { version = "6.4.2", features = ["debug-embed"] }
