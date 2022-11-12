@@ -1,5 +1,6 @@
-use std::io::Write;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::fs::rename;
 
 use actix_web::{
     body::BoxBody,
@@ -10,53 +11,55 @@ use actix_web::{
     middleware::{ self, ErrorHandlerResponse, ErrorHandlers },
     web, App, Error, HttpResponse, HttpServer, Responder, Result,
 };
-use actix_files as fs;
+use actix_files as afs;
 use actix_web_lab::respond::Html;
-use actix_multipart::Multipart;
 use tera::Tera;
 
 use chrono;
-use futures_util::TryStreamExt;
+
+use actix_easy_multipart::MultipartForm;
+use actix_easy_multipart::text::Text;
+use actix_easy_multipart::tempfile::Tempfile;
+
+
+#[derive(Debug, Clone)]
+struct AppState {
+    conn: PathBuf,
+    tera: Tera,
+    files_path: PathBuf,
+}
+
+#[derive(MultipartForm)]
+struct Upload {
+    token: Text<String>,
+    file: Tempfile,
+}
 
 #[post("")]
-async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
-    // iterate over multipart stream
-    while let Some(mut field) = payload.try_next().await? {
-        // A multipart/form-data stream has to contain `content_disposition`
-        let content_disposition = field.content_disposition();
+async fn save_file(
+    form: MultipartForm<Upload>,
+    data: web::Data<AppState>,
+) -> Result<HttpResponse, Error> {
+    let dt = chrono::offset::Utc::now().format("Uploaded_%Y-%m-%d_%H-%M-%S").to_string();
+    let filename = String::from(&form.file.file_name.clone().unwrap());
+    let vec = filename.split(".").collect::<Vec<&str>>();
+    let filepath = format!("./{}/{}.{}", &data.files_path.display(), dt, vec[vec.len()-1]);
+    rename(&form.file.file.path(), filepath)?;
 
-        if content_disposition.get_name() == Some("file") {
-            let dt = chrono::offset::Utc::now().format("Uploaded_%Y-%m-%d_%H-%M-%S").to_string();
+    // let db = sled::open(&data.conn)?;
+    // let user = "";
+    // db.insert(key, );
 
-            let filename = content_disposition
-                .get_filename()
-                .unwrap()
-                .split(".");
-            let vec = filename.collect::<Vec<&str>>();
-            let filepath = format!("./tmp/{}.{}", dt, vec[vec.len()-1]);
-
-            // File::create is blocking operation, use threadpool
-            let mut f = web::block(|| std::fs::File::create(filepath)).await??;
-
-            // Field in turn is stream of *Bytes* object
-            while let Some(chunk) = field.try_next().await? {
-                // filesystem operations are blocking, we have to use threadpool
-                f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
-            }
-        } else if content_disposition.get_name() == Some("token") {
-            todo!("Auth")
-        }
-    }
-
-    Ok(HttpResponse::Ok().into())
+    Ok(HttpResponse::Created().finish())
 }
 
 // store tera template in application state
 #[get("")]
 async fn index(
-    tmpl: web::Data<tera::Tera>,
+    data: web::Data<AppState>,
     query: web::Query<HashMap<String, String>>,
 ) -> Result<impl Responder, Error> {
+    let tmpl = &data.tera;
     let s = if let Some(name) = query.get("name") {
         // submitted form
         let mut ctx = tera::Context::new();
@@ -74,17 +77,26 @@ async fn index(
 
 #[actix_web::main]
 pub async fn main(
+    stop_web: bool,
     address: String,
     port: u16,
     log: bool,
-    dir_name: String,
+    dir_name: PathBuf,
+    db_path: PathBuf,
+    clear_db: bool,
+    disable_login: bool,
 ) -> std::io::Result<()> {
+    let db = sled::open(&db_path)?;
+    let key = "authorize";
+
+    let val = db.get(key)?;
+    println!("{:#?}", std::str::from_utf8(&val.unwrap()).unwrap());
 
     if log {
         std::env::set_var("RUST_LOG", "actix_web=info");
     }
 
-    let dir = format!("./{}", dir_name);
+    let dir = format!("./{}", dir_name.display());
     std::fs::create_dir_all(&dir)?;
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     // todo!("Cusom file name");
@@ -94,9 +106,14 @@ pub async fn main(
     HttpServer::new(move || {
         let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
         let logger = middleware::Logger::new("\"%a %s %r\" %b bytes %T s");
+        let state = AppState {
+            conn: db_path.clone(),
+            tera,
+            files_path: dir_name.clone(),
+        };
 
         App::new()
-            .app_data(web::Data::new(tera))
+            .app_data(web::Data::new(state.clone()))
             .wrap(logger)
             .service(
                 web::scope("/")
@@ -105,7 +122,7 @@ pub async fn main(
             )
             .service(
                 web::scope("")
-                    .service(fs::Files::new("/files", &dir).show_files_listing())
+                    .service(afs::Files::new("/files", &dir).show_files_listing())
                     // .service(fs::Files::new("/static", "./static").show_files_listing())
             )
             .service(
