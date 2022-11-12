@@ -16,6 +16,8 @@ use rust_embed::RustEmbed;
 mod controllers;
 use controllers::{ user_controller, admin_controller };
 
+mod models;
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     conn: PathBuf,
@@ -38,7 +40,6 @@ pub struct Config {
 
 #[actix_web::main]
 pub async fn main(config: Config) -> std::io::Result<()> {
-
     if config.log > 0 {
         std::env::set_var("RUST_LOG", "actix_web=info");
     }
@@ -73,9 +74,14 @@ pub async fn main(config: Config) -> std::io::Result<()> {
             .app_data(web::Data::new(state.clone()))
             .wrap(logger)
             .service(
-                web::scope("/")
+                web::scope("")
                     .service(user_controller::index)
                     .service(user_controller::save_file)
+
+                    .service(admin_controller::add_user)
+                    .service(admin_controller::get_user)
+                    .service(admin_controller::get_users)
+                    .service(admin_controller::delete_user)
             )
             .service(
                 web::scope("")

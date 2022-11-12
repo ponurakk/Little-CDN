@@ -15,7 +15,7 @@ pub struct Upload {
     file: Tempfile,
 }
 
-#[get("")]
+#[get("/")]
 pub async fn index(
     data: web::Data<AppState>,
 ) -> Result<HttpResponse, Error> {
@@ -32,7 +32,7 @@ pub async fn index(
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
-#[post("")]
+#[post("/")]
 pub async fn save_file(
     form: MultipartForm<Upload>,
     data: web::Data<AppState>,
@@ -53,3 +53,4 @@ pub async fn save_file(
 
     Ok(HttpResponse::Created().finish())
 }
+
