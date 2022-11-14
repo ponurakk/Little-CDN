@@ -51,14 +51,14 @@ pub fn main() {
         .get_matches();
 
     let config = Config {
-        stop_web: matches.get_one::<bool>("stop-web").unwrap().clone(),
+        stop_web: *matches.get_one::<bool>("stop-web").unwrap(),
         address: matches.get_one::<String>("address").unwrap().clone(),
         port: matches.get_one::<String>("port").unwrap().clone().parse::<u16>().unwrap(),
-        log: matches.get_one::<u8>("log").unwrap().clone(),
+        log: *matches.get_one::<u8>("log").unwrap(),
         dir: matches.get_one::<PathBuf>("dir").unwrap().clone(),
         db: matches.get_one::<PathBuf>("db").unwrap().clone(),
-        disable_login: matches.get_one::<bool>("disable-login").unwrap().clone(),
-        clear_database: matches.get_one::<bool>("clear-database").unwrap().clone(),
+        disable_login: *matches.get_one::<bool>("disable-login").unwrap(),
+        clear_database: *matches.get_one::<bool>("clear-database").unwrap(),
     };
 
     let style_dir = create_dir("stylesheets/");
