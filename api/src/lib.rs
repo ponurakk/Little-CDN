@@ -14,9 +14,10 @@ use tera::Tera;
 use rust_embed::RustEmbed;
 
 mod controllers;
-use controllers::{ user_controller, admin_controller };
+use controllers::{files_controller, admin_controller };
 
 mod models;
+mod utils;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -57,7 +58,7 @@ pub async fn main(config: Config) -> std::io::Result<()> {
         }
     }
 
-    let bind = (config.address.clone(), config.port.clone());
+    let bind = (config.address.clone(), config.port);
     println!("Listening on: {}:{}", bind.0, bind.1);
 
     HttpServer::new(move || {
@@ -69,22 +70,22 @@ pub async fn main(config: Config) -> std::io::Result<()> {
             files_path: config.dir.clone(),
             config: config.clone(),
         };
-
         App::new()
-            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(state))
             .wrap(logger)
             .service(
                 web::scope("")
-                    .service(user_controller::index)
-                    .service(user_controller::save_file)
+                    .wrap(error_handlers())
+                    .service(files_controller::index)
+                    .service(files_controller::save_file)
+                    .service(files_controller::get_files)
+                    .service(files_controller::delete_file)
 
                     .service(admin_controller::add_user)
                     .service(admin_controller::get_user)
                     .service(admin_controller::get_users)
                     .service(admin_controller::delete_user)
-            )
-            .service(
-                web::scope("")
+
                     .service(afs::Files::new("/files", &dir).show_files_listing())
                     .service(afs::Files::new("/style", "./stylesheets"))
             )
@@ -107,7 +108,7 @@ fn load_html(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     #[derive(RustEmbed)]
     #[folder = "templates/"]
     #[prefix = "templates/"]
-    struct HTML;
+    struct Html;
 
     for file in Css::iter() {
         let index = Css::get(file.as_ref()).expect("Error in reading css file");
@@ -119,8 +120,8 @@ fn load_html(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    for file in HTML::iter() {
-        let index = HTML::get(file.as_ref()).expect("Error in reading css file");
+    for file in Html::iter() {
+        let index = Html::get(file.as_ref()).expect("Error in reading css file");
         let content = std::str::from_utf8(index.data.as_ref())?.as_bytes();
         let mut new_file = File::create(file.as_ref())?;
         new_file.write_all(content)?;
