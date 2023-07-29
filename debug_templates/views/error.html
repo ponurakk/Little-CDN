@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<link rel="stylesheet" href="/style/index.css">
+	<title>{{ error }}</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	<style>
+	body {
+		position: relative;
+		height: 100vh;
+	}
+
+	body > div {
+		width: 100%;
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+	div div {
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		margin-top: 10px;
+	}
+
+	button {
+		width: 150px;
+		height: 50px;
+		font-size: 1.2em;
+	}
+
+	h1 {
+		margin: 0;
+	}
+	</style>
+</head>
+<body class="grey darken-4 white-text">
+	<div>
+		<h1 class="center">{{ status_code }}</h1>
+		<h3 class="center">{{ error }}</h3>
+		<div>
+			<a class="center" href="/">
+				<button class="btn waves-effect waves-dark grey darken-3">Go Home</button>
+			</a>
+			<a class="center" href="" onclick="history.back()">
+				<button class="btn waves-effect waves-dark grey darken-3">Go Back</button>
+			</a>
+		</div>
+	</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+</body>
+</html>
