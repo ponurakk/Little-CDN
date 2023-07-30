@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, sync::{Arc, Mutex}, fmt::Display};
+use std::{time::{Duration, Instant}, fmt::Display};
 
 use actix::prelude::*;
 use actix_web::{HttpRequest, http::StatusCode};
@@ -6,7 +6,7 @@ use actix_web_actors::ws;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 
-use crate::{ApiError, error::WebSocketError};
+use crate::{AppError, error::WebSocketError, DEFAULT_TARGET};
 
 const HEARBEAT_INTERVAL: Duration = Duration::from_secs(10);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -67,7 +67,7 @@ impl WebSocket {
     fn hb(&self, ctx: &mut <Self as Actor>::Context) {
         ctx.run_interval(HEARBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-                log::warn!(target: "Little CDN", "Websocket Client heartbeat failed, disconnecting!");
+                log::warn!(target: DEFAULT_TARGET, "Websocket Client heartbeat failed, disconnecting!");
                 
                 ctx.stop();
                 return;
@@ -82,7 +82,9 @@ impl Actor for WebSocket {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        log::info!(target: "Little CDN", "Recieved new connection");
+        let connection = self.req.connection_info().clone();
+        let host = connection.peer_addr().unwrap_or("unknown host");
+        log::info!(target: DEFAULT_TARGET, "Recieved new connection from: {}", host);
         self.hb(ctx);
     }
 }
@@ -107,7 +109,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                 match command_res {
                     Ok(v) => command = v,
                     Err(e) => {
-                        return ctx.text(format!("{:?}", e));
+                        return ctx.text(format!("{:?}", e.to_string()));
                     }
                 };
                 let request = self.req.clone();
@@ -125,7 +127,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                         },
                         Err(e) => {
                             ResponseBody {
-                                code: e.code(),
+                                code: e.status_code().as_u16(),
                                 message: e.to_string(),
                                 data: None,
                             }
@@ -146,11 +148,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
-fn handler(command: RequestBody) -> Result<Value, ApiError> {
-    ret_ws_err()?;
+fn handler(command: RequestBody) -> Result<Value, AppError> {
+    return_ws_error()?;
     Ok(serde_json::to_value(command)?)
 }
 
-fn ret_ws_err() -> Result<String, WebSocketError> {
+fn return_ws_error() -> Result<String, WebSocketError> {
     Err(WebSocketError::LoginError("Test function"))
 }

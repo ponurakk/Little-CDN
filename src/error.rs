@@ -5,7 +5,7 @@ use serde_json::json;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ApiError {
+pub enum AppError {
     #[error("Database Error: {0}")]
     DbError(#[from] sea_orm::DbErr),
     #[error("Io Error: {0}")]
@@ -20,52 +20,59 @@ pub enum ApiError {
     Utf8Error(#[from] std::str::Utf8Error),
     #[error("Error while rendering template: {0}")]
     TeraError(#[from] tera::Error),
-    #[error("WebSocketError: {0}")]
+    #[error("Multipart Error: {0}")]
+    MultipartError(#[from] actix_multipart::MultipartError),
+    #[error("{0}")]
+    ActixError(#[from] actix_web::error::Error),
+    #[error("{0}")]
+    ApiError(#[from] ApiError),
+    #[error("{0}")]
     WebSocketError(#[from] WebSocketError),
-    #[error("\"{0}\" is None")]
+    #[error("\"{0}\" is Null")]
     NoneValue(&'static str),
 }
 
-impl ApiError {
-    pub fn code(&self) -> u16 {
-        match *self {
+impl AppError {
+    pub fn status_code(&self) -> StatusCode {
+        match self {
             Self::DbError(_)
             | Self::IoError(_)
             | Self::HashError(_)
             | Self::RegexError(_)
-            | Self::Utf8Error(_) 
-            | Self::TeraError(_) => StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            Self::WebSocketError(e) => {
-                match e {
-                    WebSocketError::LoginError(_) => StatusCode::UNAUTHORIZED.as_u16(),
-                }
-            }
-            Self::SerdeError(_) => StatusCode::BAD_REQUEST.as_u16(),
-            Self::NoneValue(_) => StatusCode::NOT_FOUND.as_u16(),
+            | Self::Utf8Error(_)
+            | Self::TeraError(_)
+            | Self::MultipartError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ActixError(e) => e.as_response_error().status_code(),
+            Self::WebSocketError(e) => e.status_code(),
+            Self::ApiError(e) => e.status_code(),
+            Self::SerdeError(_) => StatusCode::BAD_REQUEST,
+            Self::NoneValue(_) => StatusCode::NOT_FOUND,
         }
     }
 }
 
-impl actix_web::error::ResponseError for ApiError {
+impl actix_web::error::ResponseError for AppError {
     fn error_response(&self) -> HttpResponse<body::BoxBody> {
         HttpResponse::build(self.status_code())
             .insert_header(ContentType::json())
-            .json(json!({ "message": self.to_string() }))
+            .json(json!({ 
+                "code": self.status_code().as_u16(),
+                "message": self.to_string()
+            }))
     }
 
     fn status_code(&self) -> StatusCode {
-        match *self {
+        match self {
             Self::DbError(_)
             | Self::IoError(_)
             | Self::HashError(_)
             | Self::RegexError(_)
-            | Self::Utf8Error(_) 
-            | Self::TeraError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::WebSocketError(e) => {
-                match e {
-                    WebSocketError::LoginError(_) => StatusCode::UNAUTHORIZED,
-                }
-            }
+            | Self::Utf8Error(_)
+            | Self::TeraError(_)
+            | Self::MultipartError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ActixError(e) => e.as_response_error().status_code(),
+            Self::ApiError(e) => e.status_code(),
+            Self::WebSocketError(e) => e.status_code(),
             Self::SerdeError(_) => StatusCode::BAD_REQUEST,
             Self::NoneValue(_) => StatusCode::NOT_FOUND,
         }
@@ -74,16 +81,31 @@ impl actix_web::error::ResponseError for ApiError {
 
 #[derive(Error, Debug, Clone, Copy)]
 pub enum WebSocketError {
+    #[error("tmp error: {0}")]
     LoginError(&'static str)
 }
 
-impl fmt::Display for WebSocketError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            Self::LoginError(v) => {
-                log::warn!(target: "Little CDN", "Failed to login user: {}", v);
-                write!(f, "Failed to login user: {}", v)
-            }
+impl WebSocketError {
+    pub fn status_code(&self) -> StatusCode {
+        match self {
+            Self::LoginError(_) => StatusCode::UNAUTHORIZED,
+        }
+    }
+}
+
+#[derive(Error, Debug, Clone, Copy)]
+pub enum ApiError {
+    #[error("You don't have enough storage space")]
+    LowStorage,
+    #[error("File with that name already exists")]
+    AlreadyExists,
+}
+
+impl ApiError {
+    pub fn status_code(&self) -> StatusCode {
+        match self {
+            Self::LowStorage => StatusCode::BAD_REQUEST,
+            Self::AlreadyExists => StatusCode::CONFLICT,
         }
     }
 }

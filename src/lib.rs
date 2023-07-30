@@ -6,7 +6,7 @@ use std::{path::{PathBuf, Path}, fs::{File, create_dir_all}, io::Write, borrow::
 
 use colored::Colorize;
 use entities::users;
-use error::ApiError;
+use error::AppError;
 use log::Level;
 use pwhash::bcrypt;
 use rand::Rng;
@@ -15,6 +15,7 @@ use tera::Tera;
 use rust_embed::{RustEmbed, EmbeddedFile};
 
 const DEFAULT_UUID: &'static str = "00000000-0000-0000-0000-000000000000";
+pub const DEFAULT_TARGET: &'static str = "Little CDN";
 
 #[derive(Debug)]
 pub struct Config {
@@ -25,7 +26,6 @@ pub struct Config {
     pub dir: PathBuf,
     pub disable_login: bool,
 }
-
 
 pub trait LogLevel {
 	fn get_from_u8(&self) -> Level;
@@ -54,7 +54,7 @@ impl AppState {
     }
 }
 
-pub async fn create_root_user(conn: &DatabaseConnection) -> Result<(), ApiError> {
+pub async fn create_root_user(conn: &DatabaseConnection) -> Result<(), AppError> {
     let user = users::Entity::find()
         .filter(users::Column::Username.eq("root"))
         .filter(users::Column::Uuid.eq(DEFAULT_UUID))
@@ -71,6 +71,7 @@ pub async fn create_root_user(conn: &DatabaseConnection) -> Result<(), ApiError>
                 username: Set("root".into()),
                 password: Set(root_password_hash),
                 max_storage: Set(-1), // -1 means unlimited storage
+                storage_usage: Set(0),
                 created_at: Set(chrono::Local::now().timestamp().to_string()),
                 updated_at: Set(chrono::Local::now().timestamp().to_string()),
                 ..Default::default()
@@ -110,7 +111,7 @@ pub fn make_token(length: u8, use_special_chars: bool) -> String {
     token
 }
 
-pub fn load_html() -> Result<(), ApiError> {
+pub fn load_html() -> Result<(), AppError> {
     macros::create_embed!(HTML, "debug_templates/views", "templates/views/");
     macros::create_embed!(Assets, "debug_templates/assets", "templates/assets/");
     Ok(())
@@ -128,10 +129,10 @@ pub mod macros {
             struct $name;
 
             for file in $name::iter() {
-                let index = $name::get(file.as_ref()).ok_or(ApiError::NoneValue("template file"))?;
+                let index = $name::get(file.as_ref()).ok_or(AppError::NoneValue("template file"))?;
                 match create_files(&file, &index) {
                     Ok(v) => v,
-                    Err(e) => log::error!(target: "Little CDN", "{} File: \"{}\" returned: {:?}, {}:{}", "Error:".red(), &file, e, file!(), line!()),
+                    Err(e) => log::error!(target: DEFAULT_TARGET, "{} File: \"{}\" returned: {:?}, {}:{}", "Error:".red(), &file, e, file!(), line!()),
                 };
             }
         };
@@ -139,20 +140,20 @@ pub mod macros {
     pub(super) use create_embed;
 }
 
-fn create_files(filename: &str, index: &EmbeddedFile) -> Result<(), ApiError> {
+fn create_files(filename: &str, index: &EmbeddedFile) -> Result<(), AppError> {
     let content = check_binary(index.data.clone())?;
     let path = Path::new(filename);
     if !path.exists() {
         let mut new_file = File::create::<&str>(filename)?;
         new_file.write_all(content.as_ref())?;
-        log::info!(target: "Little CDN", "Created: {}", filename);
+        log::info!(target: DEFAULT_TARGET, "Created: {}", filename);
     } else {
-        log::info!(target: "Little CDN", "{} already exists", filename);
+        log::info!(target: DEFAULT_TARGET, "{} already exists", filename);
     }
 	Ok(())
 }
 
-fn check_binary<'a>(data: Cow<'a, [u8]>) -> Result<Vec<u8>, ApiError> {
+fn check_binary<'a>(data: Cow<'a, [u8]>) -> Result<Vec<u8>, AppError> {
     if data.is_ascii() {
 		Ok(std::str::from_utf8(&data)?.as_bytes().to_vec())
     } else {

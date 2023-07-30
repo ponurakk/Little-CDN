@@ -1,11 +1,11 @@
 use clap::{ arg, command, value_parser };
-use lib::{Config, LogLevel, error::ApiError};
+use lib::{Config, LogLevel, error::AppError};
 use std::path::PathBuf;
 use colored::Colorize;
 
 use env_logger;
 
-pub fn init() -> Result<Config, ApiError>{
+pub fn init() -> Result<Config, AppError>{
     let matches = command!()
         .arg(arg!(
             -s --"stop-web" "Don't run the web view"
