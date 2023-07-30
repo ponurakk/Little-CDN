@@ -3,6 +3,7 @@ extern crate log;
 
 mod cmd;
 mod docs;
+pub mod util;
 
 mod controllers;
 
@@ -10,7 +11,7 @@ use actix_cors::Cors;
 use actix_web::{HttpServer, App, web, HttpResponse, http::{header::{self, ContentType}, StatusCode}, middleware::{self, ErrorHandlers, ErrorHandlerResponse}, dev::ServiceResponse, HttpRequest};
 use actix_web_actors::ws;
 use actix_files as afs;
-use lib::{Config, AppState, create_root_user, load_html, websocket_server::WebSocket, error::ApiError};
+use lib::{Config, AppState, create_root_user, load_html, websocket_server::WebSocket, error::AppError, DEFAULT_TARGET};
 use migration::{Migrator, MigratorTrait};
 use sea_orm::Database;
 use tera::Tera;
@@ -20,7 +21,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::docs::ApiDoc;
 
 #[actix_web::main]
-async fn main() -> Result<(), ApiError> {
+async fn main() -> Result<(), AppError> {
     let config: Config = cmd::init()?;
 
     let openapi = ApiDoc::openapi();
@@ -44,7 +45,7 @@ async fn main() -> Result<(), ApiError> {
 
         let mut app = App::new()
             .wrap(cors)
-            .wrap(middleware::Logger::default().log_target("Little CDN"))
+            .wrap(middleware::Logger::default().log_target(DEFAULT_TARGET))
             .app_data(web::Data::new(state))
             .default_service(web::to(|| HttpResponse::NotFound()))
             .service(web::scope("/api").route("/test2", web::get().to(|| HttpResponse::MethodNotAllowed())))
@@ -53,17 +54,20 @@ async fn main() -> Result<(), ApiError> {
                 web::resource("/ws")
                     .route(web::get().to(websocket_handler))
             )
+            .configure(controllers::files_controller::configure())
             .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()));
 
-        if !&config.stop_web { app = app.service(
-            web::scope("")
-                .wrap(
-                    ErrorHandlers::new()
-                        .handler(StatusCode::NOT_FOUND, not_found)
-                )
-                .configure(controllers::website_controller::configure())
-                .service(afs::Files::new("/assets", "templates/assets"))
-        ) }
+        if !&config.stop_web {
+            app = app.service(
+                web::scope("")
+                    .wrap(
+                        ErrorHandlers::new()
+                            .handler(StatusCode::NOT_FOUND, not_found)
+                    )
+                    .configure(controllers::website_controller::configure())
+                    .service(afs::Files::new("/assets", "templates/assets"))
+            )
+        }
 
         app
     })

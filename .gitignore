@@ -15,3 +15,4 @@ Cargo.lock
 # Project files
 templates/
 sqlite.db
+files/
