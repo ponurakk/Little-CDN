@@ -11,7 +11,8 @@ pub struct Model {
     pub uuid: String,
     pub username: String,
     pub password: String,
-    pub max_storage: i32,
+    pub max_storage: i64,
+    pub storage_usage: i64,
     pub created_at: String,
     pub updated_at: String,
 }

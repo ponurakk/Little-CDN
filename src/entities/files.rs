@@ -11,7 +11,7 @@ pub struct Model {
     pub user_id: i32,
     pub filename: String,
     pub filetype: String,
-    pub size: i32,
+    pub size: i64,
     pub created_at: String,
     pub updated_at: String,
 }
