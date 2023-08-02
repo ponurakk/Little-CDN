@@ -34,6 +34,7 @@ async fn main() -> Result<(), AppError> {
     load_html()?;
 
     info!("Starting HTTP server at {}:{}", &config.address, &config.port);
+    let bind = (config.address, config.port);
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -41,14 +42,14 @@ async fn main() -> Result<(), AppError> {
             .allow_any_method()
             .allow_any_header();
 
-        let state: AppState = AppState::new(conn.clone(), tera.clone());
+        let state: AppState = AppState::new(conn.clone(), tera.clone(), config.clone());
 
         let mut app = App::new()
             .wrap(cors)
             .wrap(middleware::Logger::default().log_target(DEFAULT_TARGET))
             .app_data(web::Data::new(state))
-            .default_service(web::to(|| HttpResponse::NotFound()))
-            .service(web::scope("/api").route("/test2", web::get().to(|| HttpResponse::MethodNotAllowed())))
+            .default_service(web::to(HttpResponse::NotFound))
+            .service(web::scope("/api").route("/test2", web::get().to(HttpResponse::MethodNotAllowed)))
             .route("/docs", web::get().to(|| async { HttpResponse::Found().insert_header((header::LOCATION, "/docs/")).finish() }))
             .service(
                 web::resource("/ws")
@@ -71,7 +72,7 @@ async fn main() -> Result<(), AppError> {
 
         app
     })
-    .bind((config.address, config.port))?
+    .bind(bind)?
     .run()
     .await?;
 

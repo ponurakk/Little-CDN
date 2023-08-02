@@ -1,6 +1,6 @@
 use std::{fs::{self, OpenOptions}, io::Write};
 
-use actix_web::{Responder, web, HttpResponse, http::header::ContentDisposition, HttpRequest, error};
+use actix_web::{Responder, web, HttpResponse, HttpRequest, error};
 use actix_multipart::Multipart;
 use lib::{error::AppError, AppState, entities::users, DEFAULT_TARGET};
 use futures_util::stream::StreamExt;
@@ -25,7 +25,7 @@ pub async fn add_file(
     let mut filenames = Vec::<String>::new();
     while let Some(item) = payload.next().await {
         let mut field = item?;
-        let content = ContentDisposition::from(field.content_disposition().clone());
+        let content = field.content_disposition().clone();
         let filename = content.get_filename().ok_or(AppError::NoneValue("filename"))?.to_owned();
         filenames.push(filename);
         let mut bytes = Vec::<u8>::new();
@@ -53,9 +53,8 @@ pub async fn add_file(
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::AlreadyExists {
                         return Err(AppError::ApiError(lib::error::ApiError::AlreadyExists));
-                    } else {
-                        return Err(AppError::IoError(e));
                     }
+                    return Err(AppError::IoError(e));
                 }
             }
             user.add_file(&data.conn, file, filename, file_size).await?;

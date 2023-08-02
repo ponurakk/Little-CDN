@@ -68,7 +68,7 @@ impl WebSocket {
         ctx.run_interval(HEARBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
                 log::warn!(target: DEFAULT_TARGET, "Websocket Client heartbeat failed, disconnecting!");
-                
+
                 ctx.stop();
                 return;
             }
@@ -104,20 +104,20 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                 if text.len() == 0 {
                     return;
                 }
-                let command_res: Result<RequestBody, serde_json::Error> = serde_json::from_str(&text.to_string());
-                let command: RequestBody;
-                match command_res {
-                    Ok(v) => command = v,
+                let command_res: Result<RequestBody, serde_json::Error> = serde_json::from_str(&text);
+
+                let command: RequestBody = match command_res {
+                    Ok(v) => v,
                     Err(e) => {
                         return ctx.text(format!("{:?}", e.to_string()));
                     }
                 };
-                let request = self.req.clone();
+                let _request = self.req.clone();
                 async move {
                     // let res_command = handle_command(cmd.clone(), args.clone(), request).await;
                     let res_command = handler(command);
 
-                    let response = match res_command {
+                    match res_command {
                         Ok(v) => {
                             ResponseBody {
                                 code: StatusCode::OK.as_u16(),
@@ -132,8 +132,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                                 data: None,
                             }
                         }
-                    };
-                    response
+                    }
                 }.into_actor(self).map(move |res, _, ctx| {
                     ctx.text(res.to_string());
                 }).wait(ctx);

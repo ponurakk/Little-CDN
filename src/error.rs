@@ -1,5 +1,3 @@
-use std::fmt;
-
 use actix_web::{http::{StatusCode, header::ContentType}, HttpResponse, body};
 use serde_json::json;
 use thiserror::Error;
@@ -86,7 +84,7 @@ pub enum WebSocketError {
 }
 
 impl WebSocketError {
-    pub fn status_code(&self) -> StatusCode {
+    pub const fn status_code(&self) -> StatusCode {
         match self {
             Self::LoginError(_) => StatusCode::UNAUTHORIZED,
         }
@@ -102,7 +100,7 @@ pub enum ApiError {
 }
 
 impl ApiError {
-    pub fn status_code(&self) -> StatusCode {
+    pub const fn status_code(&self) -> StatusCode {
         match self {
             Self::LowStorage => StatusCode::BAD_REQUEST,
             Self::AlreadyExists => StatusCode::CONFLICT,

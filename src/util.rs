@@ -19,12 +19,12 @@ impl User for users::Model {
     }
 
     async fn add_file(&self, db: &DatabaseConnection, file: &Vec<u8>, filename: &String, file_size: i64) -> Result<(), AppError> {
-        let filetype = FileFormat::from_bytes(&file);
+        let filetype = FileFormat::from_bytes(file);
         let filetype = filetype.short_name().unwrap_or(filetype.name());
         let active_file = files::ActiveModel {
             user_id: Set(self.id),
             filename: Set(filename.clone()),
-            filetype: Set(format!("{}", filetype)),
+            filetype: Set(filetype.to_string()),
             size: Set(file_size),
             created_at: Set(chrono::Local::now().timestamp().to_string()),
             updated_at: Set(chrono::Local::now().timestamp().to_string()),
