@@ -46,8 +46,8 @@ pub async fn add_file(
         if user.has_free_space(file_size) {
             let filename = filenames.get(i).ok_or(AppError::NoneValue("filename"))?;
             total_size += file_size;
-            fs::create_dir_all(format!("./files/{}", user.uuid))?;
-            let path = format!("./files/{}/{}", user.uuid, filename);
+            fs::create_dir_all(format!("{}/{}", data.config.dir.display(), user.uuid))?;
+            let path = format!("{}/{}/{}", data.config.dir.display(), user.uuid, filename);
             match OpenOptions::new().write(true).create_new(true).open(&path) {
                 Ok(mut v) => v.write_all(file)?,
                 Err(e) => {
