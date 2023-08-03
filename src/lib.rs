@@ -2,15 +2,18 @@ pub mod websocket_server;
 pub mod entities;
 pub mod error;
 
-use std::{path::{PathBuf, Path}, fs::{File, create_dir_all}, io::Write, borrow::Cow, net::Ipv4Addr};
+use std::{path::{PathBuf, Path}, fs::{File, create_dir_all}, io::Write, borrow::Cow, net::Ipv4Addr, sync::Arc};
 
+use actix_web::{web, dev::{ServiceRequest, ServiceResponse}, body::MessageBody};
+use actix_web_lab::middleware::Next;
 use colored::Colorize;
-use entities::users;
+use entities::{users, auth};
 use error::AppError;
+use futures_util::lock::Mutex;
 use log::Level;
 use pwhash::bcrypt;
 use rand::Rng;
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, ModelTrait};
 use tera::Tera;
 use rust_embed::{RustEmbed, EmbeddedFile};
 
@@ -47,11 +50,12 @@ pub struct AppState {
     pub conn: DatabaseConnection,
     pub tera: Tera,
     pub config: Config,
+    pub user: Arc<Mutex<Option<users::Model>>>,
 }
 
 impl AppState {
     pub fn new(conn: DatabaseConnection, tera: Tera, config: Config) -> Self {
-        Self { conn, tera, config }
+        Self { conn, tera, config, user: Arc::new(Mutex::new(None)) }
     }
 }
 
@@ -178,5 +182,55 @@ mod tests {
 
         // this shouldn't encode the image
         check_binary(bin.into()).expect("Failed to check if file is an binary file");
+    }
+}
+
+async fn validate_token(token: &str, data: &web::Data<AppState>) -> Option<entities::users::Model> {
+    let token = token.strip_prefix("Bearer ");
+    let auth = auth::Entity::find()
+        .filter(auth::Column::Token.eq(token))
+        .one(&data.conn)
+        .await
+        .ok()?;
+
+    match auth {
+        Some(auth_token) => {
+            let now = chrono::Local::now().timestamp();
+            if auth_token.expires_in.parse::<i64>().ok()? > now {
+                return auth_token.find_related(users::Entity)
+                    .one(&data.conn)
+                    .await
+                    .ok()?;
+            }
+            None
+        }
+        None => None
+    }
+}
+
+pub async fn auth_middleware(
+    data: web::Data<AppState>,
+    req: ServiceRequest,
+    next: Next<impl MessageBody>,
+) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
+    let token = req
+        .headers()
+        .get("authorization")
+        .and_then(|value| value.to_str().ok()).map(str::to_owned);
+
+    // return unauthorized if header is not present
+    let Some(token_v) = token else {
+        return Err(actix_web::error::ErrorUnauthorized(""));
+    };
+    match validate_token(&token_v, &data).await {
+        Some(v) => {
+            let mut user = data.user.lock().await;
+            *user = Some(v);
+            drop(user);
+            next.call(req).await
+        },
+        None => {
+            Err(actix_web::error::ErrorUnauthorized(""))
+        }
     }
 }

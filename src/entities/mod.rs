@@ -2,5 +2,6 @@
 
 pub mod prelude;
 
+pub mod auth;
 pub mod files;
 pub mod users;

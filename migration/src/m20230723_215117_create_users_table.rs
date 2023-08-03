@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Users::Uuid).uuid().not_null())
-                    .col(ColumnDef::new(Users::Username).string().not_null())
+                    .col(ColumnDef::new(Users::Username).string().unique_key().not_null())
                     .col(ColumnDef::new(Users::Password).string().not_null())
                     .col(ColumnDef::new(Users::MaxStorage).big_unsigned().not_null())
                     .col(ColumnDef::new(Users::StorageUsage).big_unsigned().not_null())

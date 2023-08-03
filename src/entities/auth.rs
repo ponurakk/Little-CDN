@@ -4,36 +4,32 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "users")]
+#[sea_orm(table_name = "auth")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub uuid: String,
-    pub username: String,
-    pub password: String,
-    pub max_storage: i64,
-    pub storage_usage: i64,
+    pub user_id: i32,
+    pub token: String,
+    pub expires_in: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::auth::Entity")]
-    Auth,
-    #[sea_orm(has_many = "super::files::Entity")]
-    Files,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::UserId",
+        to = "super::users::Column::Id",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    Users,
 }
 
-impl Related<super::auth::Entity> for Entity {
+impl Related<super::users::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Auth.def()
-    }
-}
-
-impl Related<super::files::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Files.def()
+        Relation::Users.def()
     }
 }
 

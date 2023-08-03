@@ -49,24 +49,21 @@ async fn main() -> Result<(), AppError> {
             .wrap(middleware::Logger::default().log_target(DEFAULT_TARGET))
             .app_data(web::Data::new(state))
             .default_service(web::to(HttpResponse::NotFound))
-            .service(web::scope("/api").route("/test2", web::get().to(HttpResponse::MethodNotAllowed)))
             .route("/docs", web::get().to(|| async { HttpResponse::Found().insert_header((header::LOCATION, "/docs/")).finish() }))
             .service(
-                web::resource("/ws")
-                    .route(web::get().to(websocket_handler))
+                web::scope("/api")
+                    .configure(controllers::files_controller::configure())
+                    .configure(controllers::user_controller::configure())
             )
-            .configure(controllers::files_controller::configure())
+            .service(web::resource("/ws").route(web::get().to(websocket_handler)))
             .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()));
 
         if !&config.stop_web {
             app = app.service(
                 web::scope("")
-                    .wrap(
-                        ErrorHandlers::new()
-                            .handler(StatusCode::NOT_FOUND, not_found)
-                    )
+                    .wrap(ErrorHandlers::new().handler(StatusCode::NOT_FOUND, not_found))
                     .configure(controllers::website_controller::configure())
-                    .service(afs::Files::new("/assets", "templates/assets"))
+                    .service(afs::Files::new("/assets", "templates/assets")),
             )
         }
 
@@ -104,7 +101,7 @@ fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> HttpResponse<
     let tera = request.app_data::<web::Data<AppState>>().map(|t| t.get_ref());
     match tera {
         Some(tera) => {
-			let tera = tera.tera.clone();
+            let tera = tera.tera.clone();
             let mut context = tera::Context::new();
             context.insert("error", error);
             context.insert("status_code", res.status().as_str());
@@ -115,9 +112,9 @@ fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> HttpResponse<
                     .content_type(ContentType::html())
                     .body(body).into(),
                 Err(e) => {
-					error!("{:?}", e);
-					fallback(error)
-				},
+                    error!("{:?}", e);
+                    fallback(error)
+                }
             }
         }
         None => fallback(error),

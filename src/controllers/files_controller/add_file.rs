@@ -1,12 +1,13 @@
-use std::{fs::{self, OpenOptions}, io::Write};
+use std::{
+    fs::{self, OpenOptions},
+    io::Write,
+};
 
-use actix_web::{Responder, web, HttpResponse, HttpRequest, error};
-use actix_multipart::Multipart;
-use lib::{error::AppError, AppState, entities::users, DEFAULT_TARGET};
-use futures_util::stream::StreamExt;
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
-use lib::entities::prelude::Users;
 use crate::util::User;
+use actix_multipart::Multipart;
+use actix_web::{error, web, HttpRequest, HttpResponse, Responder};
+use futures_util::stream::StreamExt;
+use lib::{error::AppError, AppState, DEFAULT_TARGET};
 
 pub async fn add_file(
     req: HttpRequest,
@@ -15,18 +16,18 @@ pub async fn add_file(
 ) -> Result<impl Responder, AppError> {
     let connection = req.connection_info().clone();
     let host = connection.peer_addr().unwrap_or("unknown host");
-    let user = Users::find()
-        .filter(users::Column::Id.eq(1))
-        .one(&data.conn)
-        .await?
-        .ok_or(AppError::NoneValue("User"))?;
+    let user_guard = data.user.lock().await;
+    let user = user_guard.as_ref().ok_or(AppError::NoneValue("User"))?;
 
-    let mut files = Vec::<Vec::<u8>>::new();
+    let mut files = Vec::<Vec<u8>>::new();
     let mut filenames = Vec::<String>::new();
     while let Some(item) = payload.next().await {
         let mut field = item?;
         let content = field.content_disposition().clone();
-        let filename = content.get_filename().ok_or(AppError::NoneValue("filename"))?.to_owned();
+        let filename = content
+            .get_filename()
+            .ok_or(AppError::NoneValue("filename"))?
+            .to_owned();
         filenames.push(filename);
         let mut bytes = Vec::<u8>::new();
         while let Some(chunk) = field.next().await {
@@ -34,7 +35,9 @@ pub async fn add_file(
         }
         if bytes.is_empty() {
             log::warn!(target: DEFAULT_TARGET, "{} sent zero bytes", host);
-            return Err(AppError::ActixError(error::ErrorBadRequest("Invalid file size")));
+            return Err(AppError::ActixError(error::ErrorBadRequest(
+                "Invalid file size",
+            )));
         }
         files.push(bytes);
     }
@@ -65,7 +68,5 @@ pub async fn add_file(
 
     user.set_storage(&data.conn, total_size).await?;
 
-    Ok(
-        HttpResponse::Ok().finish()
-    )
+    Ok(HttpResponse::Ok().finish())
 }
