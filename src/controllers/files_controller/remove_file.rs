@@ -1,4 +1,4 @@
-use std::{fs::{self, File}, io::Read};
+use std::fs;
 
 use actix_web::{web, Responder, HttpResponse};
 use lib::{AppState, error::AppError, entities::files};

@@ -71,7 +71,7 @@ pub async fn create_root_user(conn: &DatabaseConnection) -> Result<(), AppError>
         .one(conn)
         .await?;
 
-    if let Some(_) = user {} else {
+    if user.is_none() {
         let root_password = make_token(15, true);
         let root_password_hash = bcrypt::hash(&root_password)?;
         let root_model = users::ActiveModel {
@@ -118,7 +118,7 @@ pub fn make_token(length: u8, use_special_chars: bool) -> String {
 }
 
 pub fn load_html() -> Result<(), AppError> {
-    macros::create_embed!(HTML, "debug_templates/views", "templates/views/");
+    macros::create_embed!(Html, "debug_templates/views", "templates/views/");
     macros::create_embed!(Assets, "debug_templates/assets", "templates/assets/");
     Ok(())
 }
@@ -147,7 +147,7 @@ pub mod macros {
 }
 
 fn create_files(filename: &str, index: &EmbeddedFile) -> Result<(), AppError> {
-    let content = check_binary(index.data.clone())?;
+    let content = check_binary(&index.data)?;
     let path = Path::new(filename);
     if path.exists() {
         log::info!(target: DEFAULT_TARGET, "{} already exists", filename);
@@ -159,9 +159,9 @@ fn create_files(filename: &str, index: &EmbeddedFile) -> Result<(), AppError> {
     Ok(())
 }
 
-fn check_binary(data: Cow<'_, [u8]>) -> Result<Vec<u8>, AppError> {
+fn check_binary(data: &Cow<'_, [u8]>) -> Result<Vec<u8>, AppError> {
     if data.is_ascii() {
-        Ok(std::str::from_utf8(&data)?.as_bytes().to_vec())
+        Ok(std::str::from_utf8(data)?.as_bytes().to_vec())
     } else {
         Ok(data.to_vec())
     }
@@ -179,14 +179,14 @@ mod tests {
         let image = general_purpose::STANDARD.decode(image_base64).expect("Error in decoding an image");
 
         // this shouldn't encode the image
-        check_binary(image.clone().into()).expect("Failed to check if file is an binary file");
+        check_binary(&image.into()).expect("Failed to check if file is an binary file");
 
         // program returning 1 encrypted in base64
         let bin_base64 = r#"f0VMRgEAAAAAAAAAAAABAAIAAwAgAAEAIAABAAQAAACzATHAQM2AADQAIAAB"#;
         let bin = general_purpose::STANDARD.decode(bin_base64).expect("Error in decoding an binary");
 
         // this shouldn't encode the image
-        check_binary(bin.into()).expect("Failed to check if file is an binary file");
+        check_binary(&bin.into()).expect("Failed to check if file is an binary file");
     }
 }
 

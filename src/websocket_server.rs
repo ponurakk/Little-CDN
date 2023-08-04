@@ -157,6 +157,6 @@ fn handler(command: RequestBody) -> Result<Value, AppError> {
     Ok(serde_json::to_value(command)?)
 }
 
-fn return_ws_error() -> Result<String, WebSocketError> {
+const fn return_ws_error() -> Result<String, WebSocketError> {
     Err(WebSocketError::LoginError("Test function"))
 }
