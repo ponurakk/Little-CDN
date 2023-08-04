@@ -97,6 +97,8 @@ pub enum ApiError {
     LowStorage,
     #[error("File with that name already exists")]
     AlreadyExists,
+    #[error("File with that name was not found")]
+    FileNotFound,
 }
 
 impl ApiError {
@@ -104,6 +106,7 @@ impl ApiError {
         match self {
             Self::LowStorage => StatusCode::BAD_REQUEST,
             Self::AlreadyExists => StatusCode::CONFLICT,
+            Self::FileNotFound => StatusCode::NOT_FOUND,
         }
     }
 }
