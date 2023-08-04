@@ -1,6 +1,7 @@
 pub mod add_file;
 pub mod list_files;
 pub mod get_file;
+pub mod remove_file;
 
 use actix_web::web::{self, ServiceConfig};
 use actix_web_lab::middleware::from_fn;
@@ -16,7 +17,8 @@ pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
                 .route(web::get().to(list_files::list_files)))
             .service(web::resource("/file")
                 .wrap(from_fn(auth_middleware))
-                .route(web::get().to(get_file::get_file)));
+                .route(web::get().to(get_file::get_file))
+                .route(web::delete().to(remove_file::remove_file)));
     }
 }
 

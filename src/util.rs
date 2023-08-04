@@ -13,6 +13,11 @@ pub trait User {
         filename: &String,
         file_size: i64,
     ) -> Result<(), AppError>;
+    async fn remove_file(
+        &self,
+        db: &DatabaseConnection,
+        file: files::Model,
+    ) -> Result<(), AppError>;
     async fn set_storage(&self, db: &DatabaseConnection, files_size: i64) -> Result<(), AppError>;
 }
 
@@ -43,6 +48,16 @@ impl User for users::Model {
             ..Default::default()
         };
         files::Entity::insert(active_file).exec(db).await?;
+        Ok(())
+    }
+
+    async fn remove_file(
+        &self,
+        db: &DatabaseConnection,
+        file: files::Model,
+    ) -> Result<(), AppError> {
+        files::Entity::delete(Into::<files::ActiveModel>::into(file.clone())).exec(db).await?;
+        self.set_storage(db, -file.size).await?;
         Ok(())
     }
 
