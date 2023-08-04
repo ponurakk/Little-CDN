@@ -77,28 +77,43 @@ async fn main() -> Result<(), AppError> {
 }
 
 #[allow(clippy::unused_async)]
-async fn websocket_handler(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, actix_web::Error> {
+async fn websocket_handler(
+    req: HttpRequest,
+    stream: web::Payload,
+) -> Result<HttpResponse, actix_web::Error> {
     ws::start(WebSocket::new(req.clone()), &req, stream)
 }
 
 // Error handler for a 404 Page not found error.
-fn not_found<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResponse<B>> where HttpResponse<B>: std::convert::From<HttpResponse> {
+fn not_found<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResponse<B>>
+where
+    HttpResponse<B>: std::convert::From<HttpResponse>,
+{
     let response = get_error_response::<B>(&res, "Page not found");
-    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(res.into_parts().0, response.map_into_left_body())))
+    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(
+        res.into_parts().0,
+        response.map_into_left_body(),
+    )))
 }
 
 // Generic error handler.
-fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> HttpResponse<B> where HttpResponse<B>: std::convert::From<HttpResponse> {
+fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> HttpResponse<B>
+where
+    HttpResponse<B>: std::convert::From<HttpResponse>,
+{
     let request = res.request();
     // Provide a fallback to a simple plain text response in case an error occurs during the
     // rendering of the error page.
     let fallback = |e: &str| {
         HttpResponse::build(res.status())
             .content_type(ContentType::plaintext())
-            .body(e.to_string()).into()
+            .body(e.to_string())
+            .into()
     };
 
-    let tera = request.app_data::<web::Data<AppState>>().map(|t| t.get_ref());
+    let tera = request
+        .app_data::<web::Data<AppState>>()
+        .map(|t| t.get_ref());
     match tera {
         Some(tera) => {
             let tera = tera.tera.clone();
@@ -110,7 +125,8 @@ fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> HttpResponse<
             match body {
                 Ok(body) => HttpResponse::build(res.status())
                     .content_type(ContentType::html())
-                    .body(body).into(),
+                    .body(body)
+                    .into(),
                 Err(e) => {
                     error!("{:?}", e);
                     fallback(error)

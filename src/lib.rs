@@ -31,19 +31,19 @@ pub struct Config {
 }
 
 pub trait LogLevel {
-	fn get_from_u8(&self) -> Level;
+    fn get_from_u8(&self) -> Level;
 }
 
 impl LogLevel for u8 {
-	fn get_from_u8(&self) -> Level {
-		match &self {
-			0 => Level::Error,
-			1 => Level::Warn,
-			2 => Level::Info,
-			3 => Level::Debug,
-			_ => Level::Trace,
-		}
-	}
+    fn get_from_u8(&self) -> Level {
+        match &self {
+            0 => Level::Error,
+            1 => Level::Warn,
+            2 => Level::Info,
+            3 => Level::Debug,
+            _ => Level::Trace,
+        }
+    }
 }
 
 pub struct AppState {
@@ -55,7 +55,12 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(conn: DatabaseConnection, tera: Tera, config: Config) -> Self {
-        Self { conn, tera, config, user: Arc::new(Mutex::new(None)) }
+        Self {
+            conn,
+            tera,
+            config,
+            user: Arc::new(Mutex::new(None)),
+        }
     }
 }
 
@@ -151,14 +156,14 @@ fn create_files(filename: &str, index: &EmbeddedFile) -> Result<(), AppError> {
         new_file.write_all(content.as_ref())?;
         log::info!(target: DEFAULT_TARGET, "Created: {}", filename);
     }
-	Ok(())
+    Ok(())
 }
 
 fn check_binary(data: Cow<'_, [u8]>) -> Result<Vec<u8>, AppError> {
     if data.is_ascii() {
-		Ok(std::str::from_utf8(&data)?.as_bytes().to_vec())
+        Ok(std::str::from_utf8(&data)?.as_bytes().to_vec())
     } else {
-		Ok(data.to_vec())
+        Ok(data.to_vec())
     }
 }
 
@@ -197,14 +202,15 @@ async fn validate_token(token: &str, data: &web::Data<AppState>) -> Option<entit
         Some(auth_token) => {
             let now = chrono::Local::now().timestamp();
             if auth_token.expires_in.parse::<i64>().ok()? > now {
-                return auth_token.find_related(users::Entity)
+                return auth_token
+                    .find_related(users::Entity)
                     .one(&data.conn)
                     .await
                     .ok()?;
             }
             None
         }
-        None => None
+        None => None,
     }
 }
 
@@ -216,7 +222,8 @@ pub async fn auth_middleware(
     let token = req
         .headers()
         .get("authorization")
-        .and_then(|value| value.to_str().ok()).map(str::to_owned);
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
 
     // return unauthorized if header is not present
     let Some(token_v) = token else {
@@ -228,9 +235,7 @@ pub async fn auth_middleware(
             *user = Some(v);
             drop(user);
             next.call(req).await
-        },
-        None => {
-            Err(actix_web::error::ErrorUnauthorized(""))
         }
+        None => Err(actix_web::error::ErrorUnauthorized("")),
     }
 }

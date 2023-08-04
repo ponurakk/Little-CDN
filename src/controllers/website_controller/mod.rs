@@ -1,8 +1,8 @@
 use actix_web::{web::{ServiceConfig, self}, http::header::ContentType, HttpResponse, Responder};
 use lib::error::AppError;
 
-use crate::AppState;
 use self::macros::html_controller;
+use crate::AppState;
 
 pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
     html_controller!(index, "index.html");

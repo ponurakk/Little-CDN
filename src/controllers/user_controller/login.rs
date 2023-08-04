@@ -16,10 +16,14 @@ pub async fn login(
         .filter(users::Column::Username.eq(body.username))
         .one(&data.conn)
         .await?
-        .ok_or(AppError::ActixError(actix_web::error::ErrorUnauthorized("Username or password are invalid")))?;
+        .ok_or(AppError::ActixError(actix_web::error::ErrorUnauthorized(
+            "Username or password are invalid",
+        )))?;
 
     if !bcrypt::verify(body.password, &user.password) {
-        return Err(AppError::ActixError(actix_web::error::ErrorUnauthorized("Username or password are invalid")))
+        return Err(AppError::ActixError(actix_web::error::ErrorUnauthorized(
+            "Username or password are invalid",
+        )));
     }
 
     let auth = auth::Entity::find()
@@ -38,7 +42,7 @@ pub async fn login(
             auth_token.updated_at = Set(chrono::Local::now().timestamp().to_string());
 
             auth_token.update(&data.conn).await?;
-        },
+        }
         None => {
             let auth_activemodel = auth::ActiveModel {
                 user_id: Set(user.id),
@@ -53,9 +57,5 @@ pub async fn login(
         }
     }
 
-    Ok(
-        HttpResponse::Ok().json(json!({
-            "token": token
-        }))
-    )
+    Ok(HttpResponse::Ok().json(json!({ "token": token })))
 }

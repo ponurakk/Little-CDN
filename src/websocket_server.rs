@@ -51,7 +51,7 @@ impl ResponseBody {
 #[derive(Debug)]
 pub struct WebSocket {
     hb: Instant,
-    req: HttpRequest
+    req: HttpRequest,
 }
 
 impl WebSocket {
@@ -59,7 +59,7 @@ impl WebSocket {
     pub fn new(req: HttpRequest) -> Self {
         Self {
             hb: Instant::now(),
-            req
+            req,
         }
     }
 
@@ -67,7 +67,10 @@ impl WebSocket {
     fn hb(&self, ctx: &mut <Self as Actor>::Context) {
         ctx.run_interval(HEARBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-                log::warn!(target: DEFAULT_TARGET, "Websocket Client heartbeat failed, disconnecting!");
+                log::warn!(
+                    target: DEFAULT_TARGET,
+                    "Websocket Client heartbeat failed, disconnecting!"
+                );
 
                 ctx.stop();
                 return;
@@ -84,14 +87,17 @@ impl Actor for WebSocket {
     fn started(&mut self, ctx: &mut Self::Context) {
         let connection = self.req.connection_info().clone();
         let host = connection.peer_addr().unwrap_or("unknown host");
-        log::info!(target: DEFAULT_TARGET, "Recieved new connection from: {}", host);
+        log::info!(
+            target: DEFAULT_TARGET,
+            "Recieved new connection from: {}",
+            host
+        );
         self.hb(ctx);
     }
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-
         match msg {
             Ok(ws::Message::Ping(msg)) => {
                 self.hb = Instant::now();
@@ -118,32 +124,31 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                     let res_command = handler(command);
 
                     match res_command {
-                        Ok(v) => {
-                            ResponseBody {
-                                code: StatusCode::OK.as_u16(),
-                                message: String::from("Ok"),
-                                data: Some(v),
-                            }
+                        Ok(v) => ResponseBody {
+                            code: StatusCode::OK.as_u16(),
+                            message: String::from("Ok"),
+                            data: Some(v),
                         },
-                        Err(e) => {
-                            ResponseBody {
-                                code: e.status_code().as_u16(),
-                                message: e.to_string(),
-                                data: None,
-                            }
-                        }
+                        Err(e) => ResponseBody {
+                            code: e.status_code().as_u16(),
+                            message: e.to_string(),
+                            data: None,
+                        },
                     }
-                }.into_actor(self).map(move |res, _, ctx| {
+                }
+                .into_actor(self)
+                .map(move |res, _, ctx| {
                     ctx.text(res.to_string());
-                }).wait(ctx);
-            },
+                })
+                .wait(ctx);
+            }
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
             Ok(ws::Message::Close(reason)) => {
                 ctx.close(reason);
                 ctx.stop();
             }
             _ => ctx.stop(),
-        } 
+        }
     }
 }
 

@@ -6,7 +6,13 @@ use file_format::FileFormat;
 #[async_trait]
 pub trait User {
     fn has_free_space(&self, file_size: i64) -> bool;
-    async fn add_file(&self, db: &DatabaseConnection, file: &Vec<u8>, filename: &String, file_size: i64) -> Result<(), AppError>;
+    async fn add_file(
+        &self,
+        db: &DatabaseConnection,
+        file: &Vec<u8>,
+        filename: &String,
+        file_size: i64,
+    ) -> Result<(), AppError>;
     async fn set_storage(&self, db: &DatabaseConnection, files_size: i64) -> Result<(), AppError>;
 }
 
@@ -18,7 +24,13 @@ impl User for users::Model {
         false
     }
 
-    async fn add_file(&self, db: &DatabaseConnection, file: &Vec<u8>, filename: &String, file_size: i64) -> Result<(), AppError> {
+    async fn add_file(
+        &self,
+        db: &DatabaseConnection,
+        file: &Vec<u8>,
+        filename: &String,
+        file_size: i64,
+    ) -> Result<(), AppError> {
         let filetype = FileFormat::from_bytes(file);
         let filetype = filetype.short_name().unwrap_or(filetype.name());
         let active_file = files::ActiveModel {

@@ -1,4 +1,4 @@
-use actix_web::web::{ServiceConfig, self};
+use actix_web::web::{self, ServiceConfig};
 use serde::Deserialize;
 
 pub mod login;

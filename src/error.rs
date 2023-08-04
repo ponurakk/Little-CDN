@@ -53,7 +53,7 @@ impl actix_web::error::ResponseError for AppError {
     fn error_response(&self) -> HttpResponse<body::BoxBody> {
         HttpResponse::build(self.status_code())
             .insert_header(ContentType::json())
-            .json(json!({ 
+            .json(json!({
                 "code": self.status_code().as_u16(),
                 "message": self.to_string()
             }))
@@ -80,7 +80,7 @@ impl actix_web::error::ResponseError for AppError {
 #[derive(Error, Debug, Clone, Copy)]
 pub enum WebSocketError {
     #[error("tmp error: {0}")]
-    LoginError(&'static str)
+    LoginError(&'static str),
 }
 
 impl WebSocketError {

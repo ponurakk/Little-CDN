@@ -1,6 +1,6 @@
 pub mod add_file;
 
-use actix_web::web::{ServiceConfig, self};
+use actix_web::web::{self, ServiceConfig};
 use actix_web_lab::middleware::from_fn;
 use lib::auth_middleware;
 
