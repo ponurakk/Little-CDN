@@ -8,7 +8,7 @@ pub mod util;
 mod controllers;
 
 use actix_cors::Cors;
-use actix_web::{HttpServer, App, web, HttpResponse, http::{header::{self, ContentType}, StatusCode}, middleware::{self, ErrorHandlers, ErrorHandlerResponse}, dev::ServiceResponse, HttpRequest};
+use actix_web::{HttpServer, App, web, HttpResponse, http::{header::ContentType, StatusCode}, middleware::{self, ErrorHandlers, ErrorHandlerResponse}, dev::ServiceResponse, HttpRequest};
 use actix_web_actors::ws;
 use actix_files as afs;
 use lib::{Config, AppState, create_root_user, load_html, websocket_server::WebSocket, error::AppError, DEFAULT_TARGET};
@@ -16,7 +16,7 @@ use migration::{Migrator, MigratorTrait};
 use sea_orm::Database;
 use tera::Tera;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_rapidoc::RapiDoc;
 
 use crate::docs::ApiDoc;
 
@@ -49,14 +49,13 @@ async fn main() -> Result<(), AppError> {
             .wrap(middleware::Logger::default().log_target(DEFAULT_TARGET))
             .app_data(web::Data::new(state))
             .default_service(web::to(HttpResponse::NotFound))
-            .route("/docs", web::get().to(|| async { HttpResponse::Found().insert_header((header::LOCATION, "/docs/")).finish() }))
             .service(
                 web::scope("/api")
                     .configure(controllers::files_controller::configure())
                     .configure(controllers::user_controller::configure())
             )
             .service(web::resource("/ws").route(web::get().to(websocket_handler)))
-            .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()));
+            .service(RapiDoc::with_openapi("/api-docs/openapi.json", openapi.clone()).path("/docs"));
 
         if !&config.stop_web {
             app = app.service(
@@ -120,7 +119,7 @@ where
             let mut context = tera::Context::new();
             context.insert("error", error);
             context.insert("status_code", res.status().as_str());
-            let body = tera.render("index.html", &context);
+            let body = tera.render("error.html", &context);
 
             match body {
                 Ok(body) => HttpResponse::build(res.status())

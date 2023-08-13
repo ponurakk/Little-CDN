@@ -2,7 +2,8 @@
 name = "little-cdn"
 version = "0.1.0"
 edition = "2021"
-authors = ["ponurakk"]
+authors = ["ponurakk <p0unrakg@int.pl>"]
+description = "CDN and a file hosting service."
 license = "MIT"
 publish = false
 
@@ -39,7 +40,7 @@ regex = "1.9.1"
 clap = { version = "4.3.19", features = ["derive", "cargo"] }
 thiserror = "1.0.44"
 utoipa = { version = "3.4.3", features = ["actix_extras", "chrono"] }
-utoipa-swagger-ui = { version = "3.1.4", features = ["actix-web"] }
+utoipa-rapidoc = { version = "0.1", features = ["actix-web"] }
 tera = "1.19.0"
 uuid = { version = "1.4.1", features = ["v4", "fast-rng"] }
 rust-embed = { version = "6.8.1", features = ["include-exclude"] }
