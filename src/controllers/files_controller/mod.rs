@@ -6,7 +6,8 @@ pub mod remove_file;
 use actix_web::web::{self, ServiceConfig};
 use actix_web_lab::middleware::from_fn;
 use lib::auth_middleware;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
     |config: &mut ServiceConfig| {
@@ -22,7 +23,16 @@ pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct FileQuery {
     filename: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct FileEntity {
+    pub filename: String,
+    pub filetype: String,
+    pub size: i64,
+    pub created_at: String,
+    pub updated_at: String,
 }

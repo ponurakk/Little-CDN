@@ -3,10 +3,31 @@ use chrono::Duration;
 use lib::{error::AppError, AppState, entities::{auth, users}, make_token};
 use pwhash::bcrypt;
 use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
-use serde_json::json;
 
-use super::LoginData;
+use super::{LoginData, LoginAuth};
 
+/// Login user
+/// # cURL example:
+///
+/// ---
+/// ```bash
+/// curl -X POST http://192.172.0.103:4000/api/login \
+/// -d '{
+///     "username": "root",
+///     "password": "P@ssW0r3"
+/// }'
+/// ```
+#[utoipa::path(
+    post,
+    path = "/api/login",
+    tag = "Auth",
+    request_body(content = LoginData, description = "Authentication parameters", content_type = "application/json"),
+    responses(
+        (status = 200, description = "Current user", body = LoginAuth),
+        (status = 404, description = "Some value doesn't exist"),
+        (status = 500, description = "Server side error", body = AppError),
+    )
+)]
 pub async fn login(
     body: web::Json<LoginData>,
     data: web::Data<AppState>,
@@ -57,5 +78,5 @@ pub async fn login(
         }
     }
 
-    Ok(HttpResponse::Ok().json(json!({ "token": token })))
+    Ok(HttpResponse::Ok().json(LoginAuth { token }))
 }

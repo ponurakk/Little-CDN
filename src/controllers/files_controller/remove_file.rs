@@ -8,6 +8,30 @@ use crate::util::User;
 
 use super::FileQuery;
 
+/// Remove specified file
+/// # cURL example:
+///
+/// ---
+/// ```bash
+/// curl -X DELETE 'http://127.0.0.1:3000/api/file?filename=File1.zip' \
+/// -H 'Authorization: Bearer 9VAZNG7tHdJkt1oAECRVNYfrG5AJEpMyTaT8lFqhDeRvDGVUGQqiGqBt73pY'
+/// ```
+#[utoipa::path(
+    delete,
+    path = "/api/file",
+    tag = "Files",
+    security(
+        ("Authorization" = [])
+    ),
+    params(
+        ("filename" = String, Query, description = "Name of the file"),
+    ),
+    responses(
+        (status = 200, description = "Seccesfully removed file"),
+        (status = 404, description = "Some value doesn't exist"),
+    )
+)]
+
 pub async fn remove_file(
     query: web::Query<FileQuery>,
     data: web::Data<AppState>

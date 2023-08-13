@@ -6,6 +6,30 @@ use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
 
 use super::FileQuery;
 
+/// Download specified file
+/// # cURL example:
+///
+/// ---
+/// ```bash
+/// curl -X GET 'http://127.0.0.1:3000/api/file?filename=File1.zip' \
+/// -H 'Authorization: Bearer 9VAZNG7tHdJkt1oAECRVNYfrG5AJEpMyTaT8lFqhDeRvDGVUGQqiGqBt73pY' \
+/// -o File1.zip
+/// ```
+#[utoipa::path(
+    get,
+    path = "/api/file",
+    tag = "Files",
+    security(
+        ("Authorization" = [])
+    ),
+    params(
+        ("filename" = String, Query, description = "Name of the file"),
+    ),
+    responses(
+        (status = 200, body = Vec<u8>, description = "Requested binary", content_type = "application/octet-stream"),
+        (status = 404, description = "Some value doesn't exist"),
+    )
+)]
 pub async fn get_file(
     query: web::Query<FileQuery>,
     data: web::Data<AppState>

@@ -1,8 +1,9 @@
 use actix_web::{http::{StatusCode, header::ContentType}, HttpResponse, body};
 use serde_json::json;
 use thiserror::Error;
+use utoipa::ToSchema;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, ToSchema)]
 pub enum AppError {
     #[error("Database Error: {0}")]
     DbError(#[from] sea_orm::DbErr),
@@ -77,7 +78,7 @@ impl actix_web::error::ResponseError for AppError {
     }
 }
 
-#[derive(Error, Debug, Clone, Copy)]
+#[derive(Error, Debug, Clone, Copy, ToSchema)]
 pub enum WebSocketError {
     #[error("tmp error: {0}")]
     LoginError(&'static str),
@@ -91,7 +92,7 @@ impl WebSocketError {
     }
 }
 
-#[derive(Error, Debug, Clone, Copy)]
+#[derive(Error, Debug, Clone, Copy, ToSchema)]
 pub enum ApiError {
     #[error("You don't have enough storage space")]
     LowStorage,

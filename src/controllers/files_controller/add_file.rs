@@ -9,6 +9,31 @@ use actix_web::{error, web, HttpRequest, HttpResponse, Responder};
 use futures_util::stream::StreamExt;
 use lib::{error::AppError, AppState, DEFAULT_TARGET};
 
+/// Send files to remote
+/// # cURL example:
+///
+/// ---
+/// ```bash
+/// curl -X POST http://127.0.0.1:3000/api/files \
+/// -H 'Authorization: Bearer 9VAZNG7tHdJkt1oAECRVNYfrG5AJEpMyTaT8lFqhDeRvDGVUGQqiGqBt73pY' \
+/// -F "file=@File1.zip"
+/// -F "file=@File2.txt"
+/// ```
+/// You can send multiple files at the same time by just repeating `-F` parameter. Key doesn't have
+/// to be named `file` it can be just anything.
+#[utoipa::path(
+    post,
+    path = "/api/files",
+    tag = "Files",
+    security(
+        ("Authorization" = [])
+    ),
+    request_body(content = i32, description = "Multipart data", content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "Succesfully added file"),
+        (status = 404, description = "Some value doesn't exist"),
+    )
+)]
 pub async fn add_file(
     req: HttpRequest,
     mut payload: Multipart,
@@ -26,7 +51,7 @@ pub async fn add_file(
         let content = field.content_disposition().clone();
         let filename = content
             .get_filename()
-            .ok_or(AppError::NoneValue("filename"))?
+            .ok_or(AppError::NoneValue("file"))?
             .to_owned();
         filenames.push(filename);
         let mut bytes = Vec::<u8>::new();
