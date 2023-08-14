@@ -1,5 +1,4 @@
-use utoipa::{OpenApi, Modify, openapi::security::{SecurityScheme, ApiKey, ApiKeyValue}};
-// use utoipa::openapi::security::Http
+use utoipa::{OpenApi, Modify, openapi::security::{SecurityScheme, HttpBuilder}};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -42,7 +41,9 @@ impl Modify for SecurityAddon {
         let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
         components.add_security_scheme(
             "Authorization",
-            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("Authorization"))),
+            SecurityScheme::Http(
+                HttpBuilder::new().scheme(utoipa::openapi::security::HttpAuthScheme::Bearer).description(Some("*Note: You don't need to write it here because it's applied automaticaly.*")).build()
+            )
         )
     }
 }
