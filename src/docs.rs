@@ -7,6 +7,7 @@ use utoipa::{OpenApi, Modify, openapi::security::{SecurityScheme, HttpBuilder}};
         // Auth
         crate::controllers::user_controller::login::login,
         crate::controllers::user_controller::sign_up::sign_up,
+        crate::controllers::user_controller::remove_user::remove_user,
 
         // Files
         crate::controllers::files_controller::add_file::add_file,

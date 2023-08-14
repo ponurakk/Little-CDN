@@ -1,15 +1,19 @@
 use actix_web::web::{self, ServiceConfig};
+use actix_web_lab::middleware::from_fn;
+use lib::auth_middleware;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 pub mod login;
 pub mod sign_up;
+pub mod remove_user;
 
 pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
     |config: &mut ServiceConfig| {
         config
             .service(web::resource("/login").route(web::post().to(login::login)))
-            .service(web::resource("/signup").route(web::post().to(sign_up::sign_up)));
+            .service(web::resource("/sign_up").route(web::post().to(sign_up::sign_up)))
+            .service(web::resource("/remove_account").wrap(from_fn(auth_middleware)).route(web::delete().to(remove_user::remove_user)));
     }
 }
 
